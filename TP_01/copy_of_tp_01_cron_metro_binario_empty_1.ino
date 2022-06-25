@@ -1,6 +1,4 @@
-
-/*
- *	Trabajo Práctico 1: Cronómetro Binario
+/*Trabajo Práctico 1: Cronómetro Binario
  *
  *	Al iniciar la simulacion, todos los led deben comenzar apagados.
  *	Cada 1 segundo que transcurra, se deben encender los led
@@ -32,66 +30,129 @@
  *  y de corresponder, que retorna).
 */
 
-//##### Una Ayudita #####
-//--- Defines ---//
 #define ZERO_TO_HERO 0          //? To start the counter from 0
-#define BUTTON_START 2
-#define BUTTON_RESET 3
+#define BUTTON_START 3
+#define BUTTON_RESET 2
 #define FIRST_LED 4             //? First pin of the leds
 #define LAST_LED 13             //? Last pin of the leds
 #define BASE_MILLI_SECONDS 1000 //? Secods expresed in miliseconds
 #define MAX_SECONDS 1023        //! Max amount of secods to show
+#define TAM_BINARIO 10
 //--- End Defines ---//
-
-
-int pinout [] = {4,5,6,7,8,9,10,11,12,13};
-boolean Pausa=true;                                      // Descontoar o no
-boolean Pulsado=false;  // Boton pulsado, esperar a soltarlo
-int estadoLed = 5;
-int estadoPulsadorAntes = 0;
-int i=0;
-int j=0;
-
-void setup(){	
+void setPins(){                 //seteo de pins
   
-   Serial.begin(9600);
-	int i = 0;
-  
-  	pinMode (BUTTON_START,INPUT);
-    pinMode (BUTTON_RESET,INPUT);
-  
-  for (i=0;i<10;i++){
-    pinMode (pinout[i],OUTPUT);
+  for(int i=FIRST_LED; i<=LAST_LED; i++){
+    pinMode(i, OUTPUT);
   }
-	
+}
+
+void setButtons(){              //seteo de botones
+  
+  pinMode(BUTTON_RESET, INPUT);
+  pinMode(BUTTON_START, INPUT);
+}
+
+void setup(){
+  setPins();
+  setButtons();
+  Serial.begin(9600);
+}
+
+//Variables
+short contador = ZERO_TO_HERO;              
+int arrayBinario[TAM_BINARIO];               //Un array con los digitos del numero del contador en binario
+unsigned long millisBefore = 0;
+short botonReset = LOW;                        //Estado del boton antes de se clickeado
+short banderaInicio = 0;                     //bandera para determinar si un boton ya fue clickeado
+
+void decimalAbinario(int cont, int array[]){
+    short numeroBin = 0;
+	int ultimoIndice = TAM_BINARIO-1;
+    
+    
+    while( cont > 0){                           // Arma cadena binaria en el array
+        numeroBin = cont % 2;
+        cont /= 2;
+        array[ultimoIndice] = numeroBin;
+        ultimoIndice--;
+    }
+
+    
+    while(ultimoIndice >= 0){               // rellenar con 0 hacia la izquierda.
+        array[ultimoIndice] = 0;
+        ultimoIndice--;
+    }
+}
+
+
+void imprimirCadena(){   //Imprime los numeros en binario
+  
+  	Serial.print("Binario ");
+    for(int i = 0; i < TAM_BINARIO; i++){
+        Serial.print(arrayBinario[i]);
+    }
+  	
+  	Serial.print(" | Decimal ");
+    Serial.print(contador);
+    Serial.println("");
+}
+
+
+void turnLed(int arr[], int tam){                   //Enciende los led según el valor del digito
+  for(int i = 0; i<tam; i++){
+    digitalWrite(LAST_LED-i, arr[i]);
+  }
+}
+
+
+void conteo(){                                              //Esta funcion realiza el conteo
+  unsigned long millisNow = millis();
+  	if(millisNow - millisBefore >= BASE_MILLI_SECONDS){
+    decimalAbinario(contador, arrayBinario);
+    imprimirCadena();
+    turnLed(arrayBinario, TAM_BINARIO);
+    contador++;
+    millisBefore = millisNow;
+  }
+}
+
+
+void iniciaCronometro()
+{
+ int botonInicio = digitalRead(BUTTON_START);
+ 
+  if(banderaInicio == 1 && contador <= MAX_SECONDS)
+  {
+    conteo();  
+  }
+  
+  if(botonInicio == HIGH && botonReset == LOW  &&
+     banderaInicio == 0)
+  {
+    banderaInicio = 1;
+    
+  }else if(botonInicio == HIGH && botonReset == LOW &&    //Inicia y pausa el conteo
+           banderaInicio == 1)
+  {
+    banderaInicio = 0;
+  }
+  
+  botonReset = botonInicio;
+}
+
+
+void resetCronometro(){                            //Se reinicia el contador
+  int botonInicio = digitalRead(BUTTON_RESET);
+  if(botonInicio == HIGH && botonReset == LOW){
+    contador = ZERO_TO_HERO;
+  }
+  botonInicio = botonReset;
 }
 
 void loop(){
-  int i =0;
-  int j =0;
-  int estadoPulsador = digitalRead(BUTTON_START);
-  int estadoPulsadorAntes=0;
-  int reset=digitalRead(BUTTON_RESET);
-
-  while (digitalRead(BUTTON_START)==1 && estadoPulsadorAntes==0){
-  	for (i=0;i<1023;i++){ // ITERO TODOS LOS SEGUNDOS NECESARIOS HASTA CONSEGUIR 1111111111
-      Serial.print(i,BIN);
-    	for (j=0;j<10;j++){ // ITERO LOS LEDS
- //       if (digitalRead(BUTTON_RESET)==LOW){
-      	   if (((i>>j)&1)==1){ //BIT SHIFT PARA OBTENER LA REPRESENTACION BINARIA
-              digitalWrite (pinout[j],HIGH); // PASO SALIDA A NIVEL LOGICO ALTO 
-              }else {
-                digitalWrite (pinout[j],LOW); //PASO SALIDA A NIVEL LOGICO BAJO
-            	} //CIERRO IF 2 //CIERRO IF 1
-           estadoPulsadorAntes = estadoPulsador;
-           estadoPulsador=digitalRead(BUTTON_START);
-//          }else{
-//            digitalWrite(ZERO_TO_HERO,LOW);
-//            i=0;
-//            j=0;
-//          }
-        }// CIERRO FOR 1	
-    	delay (BASE_MILLI_SECONDS); //DELAY DE 1 SEGUNDO
-	 } // CIERRO FOR 2
-  }//CIERRO WHILE   
-}//CIERRO VOID
+  iniciaCronometro();
+  resetCronometro();
+  if(contador>MAX_SECONDS){
+    contador = ZERO_TO_HERO;
+  }
+  delay(80);
