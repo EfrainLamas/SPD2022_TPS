@@ -156,3 +156,4 @@ void loop(){
     contador = ZERO_TO_HERO;
   }
   delay(80);
+}
